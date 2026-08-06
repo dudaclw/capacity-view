@@ -4,19 +4,21 @@ import {
   addDays,
   assignLanes,
   computeLoad,
+  periodOverallocated,
   rangeToPercent,
-  weekHours,
-  weekLabel,
   parseISO,
 } from '@/lib/capacity'
+import type { Period } from '@/lib/capacity'
 import { cn } from '@/lib/utils'
 import type { Allocation, Project, Resource } from '@/lib/types'
 
-const LABEL_WIDTH = 200
-const LANE_HEIGHT = 32
-const ROW_PADDING = 16
+// Shared with project-grid.tsx so the two grouping modes line up visually.
+export const LABEL_WIDTH = 200
+export const LANE_HEIGHT = 32
+export const ROW_PADDING = 16
 
-const LOAD_BAND_STYLES = {
+// Shared with dashboard.tsx — the one status palette for available/near-limit/overallocated (RN05).
+export const LOAD_BAND_STYLES = {
   available: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
   'near-limit': 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
   overallocated: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
@@ -26,15 +28,17 @@ export function CapacityGrid({
   resources,
   projects,
   allocations,
-  weeks,
+  columns,
+  loadWeeks,
 }: {
   resources: Resource[]
   projects: Project[]
   allocations: Allocation[]
-  weeks: Date[]
+  columns: Period[]
+  loadWeeks: Date[]
 }) {
-  const rangeStart = weeks[0]
-  const rangeEnd = addDays(weeks[weeks.length - 1], 7)
+  const rangeStart = columns[0].start
+  const rangeEnd = columns[columns.length - 1].end
   const today = new Date()
   const todayInRange = today >= rangeStart && today < rangeEnd
   const { left: todayLeft } = rangeToPercent(rangeStart, rangeEnd, today, today)
@@ -47,9 +51,9 @@ export function CapacityGrid({
           Recurso
         </div>
         <div className="flex flex-1">
-          {weeks.map((week, i) => (
+          {columns.map((col, i) => (
             <div key={i} className="flex-1 border-l px-2 py-2 text-xs text-muted-foreground">
-              {weekLabel(week)}
+              {col.label}
             </div>
           ))}
         </div>
@@ -59,7 +63,7 @@ export function CapacityGrid({
         const resourceAllocations = allocations.filter((a) => a.resourceId === resource.id)
         const lanes = assignLanes(resourceAllocations)
         const laneCount = Math.max(1, ...Array.from(lanes.values(), (l) => l + 1))
-        const load = computeLoad(resource, resourceAllocations, weeks)
+        const load = computeLoad(resource, resourceAllocations, loadWeeks)
 
         return (
           <div key={resource.id} className="flex border-b last:border-b-0">
@@ -77,8 +81,8 @@ export function CapacityGrid({
               style={{ height: laneCount * LANE_HEIGHT + ROW_PADDING }}
             >
               <div className="absolute inset-0 flex">
-                {weeks.map((week, i) => {
-                  const overallocated = weekHours(resourceAllocations, week) > resource.weeklyCapacityHours
+                {columns.map((col, i) => {
+                  const overallocated = periodOverallocated(resourceAllocations, resource, col)
                   return (
                     <div
                       key={i}
