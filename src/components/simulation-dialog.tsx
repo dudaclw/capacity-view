@@ -1,4 +1,5 @@
 import { useId, useMemo, useState } from 'react'
+import { Wand2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -56,9 +57,12 @@ export function SimulationDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Fazer uma simulação</Button>
+        <Button variant="ghost" className="rounded-full">
+          <Wand2 className="size-4" />
+          Fazer uma simulação
+        </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Simular impacto de um projeto hipotético</DialogTitle>
         </DialogHeader>

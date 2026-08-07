@@ -7,7 +7,7 @@ import type { TrendPoint } from '@/lib/capacity'
 import { cn } from '@/lib/utils'
 import type { Allocation, Project, Resource } from '@/lib/types'
 
-const TREND_WEEKS = 10
+const TREND_WEEKS = 5
 
 const BAND_TEXT = {
   available: 'text-emerald-700 dark:text-emerald-400',

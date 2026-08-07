@@ -1,14 +1,19 @@
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { CalendarHeader } from '@/components/calendar-header'
+import { ProjectDialog } from '@/components/project-dialog'
 import {
   addDays,
   assignLanes,
+  columnTint,
   computeLoad,
+  isWeekend,
+  periodContainsToday,
   periodOverallocated,
   rangeToPercent,
   parseISO,
 } from '@/lib/capacity'
-import type { Period } from '@/lib/capacity'
+import type { Granularity, Period } from '@/lib/capacity'
 import { cn } from '@/lib/utils'
 import type { Allocation, Project, Resource } from '@/lib/types'
 
@@ -30,12 +35,16 @@ export function CapacityGrid({
   allocations,
   columns,
   loadWeeks,
+  granularity,
+  onUpdateProject,
 }: {
   resources: Resource[]
   projects: Project[]
   allocations: Allocation[]
   columns: Period[]
   loadWeeks: Date[]
+  granularity: Granularity
+  onUpdateProject: (project: Project) => void
 }) {
   const rangeStart = columns[0].start
   const rangeEnd = columns[columns.length - 1].end
@@ -46,18 +55,7 @@ export function CapacityGrid({
 
   return (
     <div className="relative rounded-md border">
-      <div className="flex border-b bg-muted/40">
-        <div className="shrink-0 px-3 py-2 text-sm font-medium" style={{ width: LABEL_WIDTH }}>
-          Recurso
-        </div>
-        <div className="flex flex-1">
-          {columns.map((col, i) => (
-            <div key={i} className="flex-1 border-l px-2 py-2 text-xs text-muted-foreground">
-              {col.label}
-            </div>
-          ))}
-        </div>
-      </div>
+      <CalendarHeader columns={columns} granularity={granularity} labelText="Recurso" />
 
       {resources.map((resource) => {
         const resourceAllocations = allocations.filter((a) => a.resourceId === resource.id)
@@ -86,7 +84,10 @@ export function CapacityGrid({
                   return (
                     <div
                       key={i}
-                      className={cn('flex-1 border-l', overallocated && 'bg-red-500/15')}
+                      className={cn(
+                        'flex-1 border-l',
+                        columnTint(overallocated, periodContainsToday(col), isWeekend(col.start)),
+                      )}
                     />
                   )
                 })}
@@ -102,27 +103,32 @@ export function CapacityGrid({
                 )
                 const percent = Math.round((alloc.weeklyHours / resource.weeklyCapacityHours) * 100)
                 return (
-                  <Tooltip key={alloc.id}>
-                    <TooltipTrigger asChild>
-                      <div
-                        className="absolute rounded-sm px-1.5 py-1 text-xs font-medium text-white overflow-hidden text-ellipsis whitespace-nowrap"
-                        style={{
-                          left: `${left}%`,
-                          width: `${width}%`,
-                          top: (lanes.get(alloc.id) ?? 0) * LANE_HEIGHT + ROW_PADDING / 2,
-                          height: LANE_HEIGHT - 4,
-                          backgroundColor: project.color,
-                        }}
-                      >
-                        {project.name}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {project.name} · {alloc.weeklyHours}h/sem ({percent}% da jornada)
-                      <br />
-                      {alloc.startDate} → {alloc.endDate}
-                    </TooltipContent>
-                  </Tooltip>
+                  <ProjectDialog key={alloc.id} project={project} onSave={onUpdateProject}>
+                    {(open) => (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div
+                            onClick={open}
+                            className="absolute cursor-pointer rounded-md px-1.5 py-1 text-xs font-medium text-white shadow-sm overflow-hidden text-ellipsis whitespace-nowrap"
+                            style={{
+                              left: `${left}%`,
+                              width: `${width}%`,
+                              top: (lanes.get(alloc.id) ?? 0) * LANE_HEIGHT + ROW_PADDING / 2,
+                              height: LANE_HEIGHT - 4,
+                              backgroundColor: project.color,
+                            }}
+                          >
+                            {project.name}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {project.name} · {alloc.weeklyHours}h/sem ({percent}% da jornada)
+                          <br />
+                          {alloc.startDate} → {alloc.endDate}
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </ProjectDialog>
                 )
               })}
             </div>

@@ -1,13 +1,18 @@
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { CalendarHeader } from '@/components/calendar-header'
+import { ProjectDialog } from '@/components/project-dialog'
 import {
   addDays,
   assignLanes,
+  columnTint,
+  isWeekend,
+  periodContainsToday,
   periodOverallocated,
   rangeToPercent,
   parseISO,
 } from '@/lib/capacity'
-import type { Period } from '@/lib/capacity'
+import type { Granularity, Period } from '@/lib/capacity'
 import { cn } from '@/lib/utils'
 import { LABEL_WIDTH, LANE_HEIGHT, ROW_PADDING } from '@/components/capacity-grid'
 import type { Allocation, Project, Resource } from '@/lib/types'
@@ -23,11 +28,15 @@ export function ProjectGrid({
   projects,
   allocations,
   columns,
+  granularity,
+  onUpdateProject,
 }: {
   resources: Resource[]
   projects: Project[]
   allocations: Allocation[]
   columns: Period[]
+  granularity: Granularity
+  onUpdateProject: (project: Project) => void
 }) {
   const rangeStart = columns[0].start
   const rangeEnd = columns[columns.length - 1].end
@@ -38,18 +47,7 @@ export function ProjectGrid({
 
   return (
     <div className="relative rounded-md border">
-      <div className="flex border-b bg-muted/40">
-        <div className="shrink-0 px-3 py-2 text-sm font-medium" style={{ width: LABEL_WIDTH }}>
-          Projeto / Recurso
-        </div>
-        <div className="flex flex-1">
-          {columns.map((col, i) => (
-            <div key={i} className="flex-1 border-l px-2 py-2 text-xs text-muted-foreground">
-              {col.label}
-            </div>
-          ))}
-        </div>
-      </div>
+      <CalendarHeader columns={columns} granularity={granularity} labelText="Projeto / Recurso" />
 
       {projects.map((project) => {
         const projectAllocations = allocations.filter((a) => a.projectId === project.id)
@@ -57,13 +55,21 @@ export function ProjectGrid({
 
         return (
           <div key={project.id}>
-            <div className="flex items-center gap-2 border-b bg-muted/20 px-3 py-1.5 text-sm font-medium">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: project.color }} />
-              {project.name}
-              <span className="text-muted-foreground text-xs font-normal">
-                ({resourceIds.length} {resourceIds.length === 1 ? 'recurso' : 'recursos'})
-              </span>
-            </div>
+            <ProjectDialog project={project} onSave={onUpdateProject}>
+              {(open) => (
+                <button
+                  type="button"
+                  onClick={open}
+                  className="flex w-full items-center gap-2 border-b bg-muted/20 px-3 py-1.5 text-sm font-medium hover:bg-muted/40"
+                >
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: project.color }} />
+                  {project.name}
+                  <span className="text-muted-foreground text-xs font-normal">
+                    ({resourceIds.length} {resourceIds.length === 1 ? 'recurso' : 'recursos'})
+                  </span>
+                </button>
+              )}
+            </ProjectDialog>
 
             {resourceIds.map((resourceId) => {
               const resource = resourceById.get(resourceId)
@@ -98,7 +104,10 @@ export function ProjectGrid({
                         return (
                           <div
                             key={i}
-                            className={cn('flex-1 border-l', overallocated && 'bg-red-500/15')}
+                            className={cn(
+                              'flex-1 border-l',
+                              columnTint(overallocated, periodContainsToday(col), isWeekend(col.start)),
+                            )}
                           />
                         )
                       })}
@@ -115,7 +124,7 @@ export function ProjectGrid({
                         <Tooltip key={alloc.id}>
                           <TooltipTrigger asChild>
                             <div
-                              className="absolute rounded-sm px-1.5 py-1 text-xs font-medium text-white overflow-hidden text-ellipsis whitespace-nowrap"
+                              className="absolute rounded-md px-1.5 py-1 text-xs font-medium text-white shadow-sm overflow-hidden text-ellipsis whitespace-nowrap"
                               style={{
                                 left: `${left}%`,
                                 width: `${width}%`,

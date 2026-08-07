@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -57,7 +58,10 @@ export function AllocationForm({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Nova alocação</Button>
+        <Button className="rounded-full">
+          <Plus className="size-4" />
+          Nova alocação
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

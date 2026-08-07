@@ -11,15 +11,15 @@ export const resources: Resource[] = [
 // RF03: one color per project, reused across the app.
 export const PROJECT_PALETTE = ['#2274A5', '#816C61', '#B98F2B', '#4C8C6B', '#A5527A']
 
-export const projects: Project[] = [
-  { id: 'p1', name: 'Portal Cliente', color: PROJECT_PALETTE[0] },
-  { id: 'p2', name: 'Migração ERP', color: PROJECT_PALETTE[1] },
-  { id: 'p3', name: 'App Mobile', color: PROJECT_PALETTE[2] },
-  { id: 'p4', name: 'Suporte N2', color: PROJECT_PALETTE[3] },
-]
-
 const today = startOfWeek(new Date())
 const iso = (offsetDays: number) => toISO(addDays(today, offsetDays))
+
+export const projects: Project[] = [
+  { id: 'p1', name: 'Portal Cliente', color: PROJECT_PALETTE[0], status: 'ativo', startDate: iso(-30), endDate: iso(60) },
+  { id: 'p2', name: 'Migração ERP', color: PROJECT_PALETTE[1], status: 'ativo', startDate: iso(-14), endDate: iso(30) },
+  { id: 'p3', name: 'App Mobile', color: PROJECT_PALETTE[2], status: 'ativo', startDate: iso(-20), endDate: iso(90) },
+  { id: 'p4', name: 'Suporte N2', color: PROJECT_PALETTE[3], status: 'ativo', startDate: iso(-40), endDate: iso(120) },
+]
 
 export const initialAllocations: Allocation[] = [
   { id: 'a1', resourceId: 'r1', projectId: 'p1', startDate: iso(-7), endDate: iso(20), weeklyHours: 20 },

@@ -8,6 +8,9 @@ export interface Project {
   id: string
   name: string
   color: string
+  status: 'ativo' | 'inativo'
+  startDate: string // ISO yyyy-mm-dd
+  endDate: string // ISO yyyy-mm-dd
 }
 
 export interface Allocation {

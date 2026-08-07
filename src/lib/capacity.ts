@@ -95,6 +95,46 @@ export function monthLabel(date: Date): string {
   return date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
 }
 
+/** Top-bar title for the visible range, Google Calendar-style: "Agosto de 2026" when it fits
+ *  one month, "27 jul – 5 out de 2026" otherwise. */
+export function periodRangeLabel(rangeStart: Date, rangeEndExclusive: Date): string {
+  const end = addDays(rangeEndExclusive, -1)
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+  if (rangeStart.getMonth() === end.getMonth() && rangeStart.getFullYear() === end.getFullYear()) {
+    return capitalize(rangeStart.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }))
+  }
+  const startLabel = rangeStart.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })
+  const endLabel = end.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' })
+  return `${startLabel} – ${endLabel}`
+}
+
+/** Weekday abbreviation, uppercase, no trailing dot — "qua." -> "QUA" (Google Calendar-style header). */
+export function weekdayShort(date: Date): string {
+  return date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').toUpperCase()
+}
+
+export function dayOfMonth(date: Date): string {
+  return date.toLocaleDateString('pt-BR', { day: '2-digit' })
+}
+
+export function isWeekend(date: Date): boolean {
+  const day = date.getDay()
+  return day === 0 || day === 6
+}
+
+export function periodContainsToday(period: Pick<Period, 'start' | 'end'>): boolean {
+  const today = new Date()
+  return today >= period.start && today < period.end
+}
+
+/** Single place the column-background priority lives: an overallocated week always wins. */
+export function columnTint(overallocated: boolean, isToday: boolean, weekend: boolean): string {
+  if (overallocated) return 'bg-red-500/15'
+  if (isToday) return 'bg-primary/10'
+  if (weekend) return 'bg-muted/40'
+  return ''
+}
+
 /** Weeks overlapping [start, end), one entry per column. */
 export function buildWeeks(start: Date, count: number): Date[] {
   return Array.from({ length: count }, (_, i) => addWeeks(start, i))
