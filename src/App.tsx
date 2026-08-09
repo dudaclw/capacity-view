@@ -1,5 +1,16 @@
 import { useMemo, useState } from 'react'
-import { BarChart3, CalendarDays, CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  BarChart3,
+  CalendarDays,
+  CalendarRange,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  CircleHelp,
+  Menu,
+  Search,
+  Settings,
+} from 'lucide-react'
 import { AllocationForm } from '@/components/allocation-form'
 import { CapacityGrid } from '@/components/capacity-grid'
 import { ProjectGrid } from '@/components/project-grid'
@@ -7,8 +18,10 @@ import { Dashboard } from '@/components/dashboard'
 import { SimulationDialog } from '@/components/simulation-dialog'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { addPeriod, buildPeriods, periodRangeLabel, startOfPeriod, weeksBetween } from '@/lib/capacity'
+import { addPeriod, buildPeriods, periodRangeLabel, rangeAnchor, startOfPeriod, weeksBetween } from '@/lib/capacity'
 import type { Granularity } from '@/lib/capacity'
 import { initialAllocations, projects as initialProjects, resources } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
@@ -16,7 +29,7 @@ import type { Allocation, Project } from '@/lib/types'
 
 // RF08: how many columns to show and how far "Anteriores/Próximas" jumps, per granularity.
 const GRANULARITY_CONFIG: Record<Granularity, { count: number; navStep: number; label: string }> = {
-  day: { count: 21, navStep: 7, label: 'Dia' },
+  day: { count: 7, navStep: 7, label: 'Dia' },
   week: { count: 10, navStep: 4, label: 'Semana' },
   month: { count: 6, navStep: 3, label: 'Mês' },
 }
@@ -40,6 +53,7 @@ function App() {
   const [grouping, setGrouping] = useState<Grouping>('resource')
   const [rangeStart, setRangeStart] = useState(() => addPeriod(startOfPeriod(new Date(), 'week'), 'week', -1))
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const { count, navStep } = GRANULARITY_CONFIG[granularity]
   const columns = useMemo(() => buildPeriods(granularity, rangeStart, count), [granularity, rangeStart, count])
@@ -50,63 +64,48 @@ function App() {
 
   function changeGranularity(next: Granularity) {
     setGranularity(next)
-    setRangeStart(addPeriod(startOfPeriod(new Date(), next), next, -1))
+    setRangeStart(rangeAnchor(new Date(), next))
   }
 
   function goToToday() {
     setSelectedDate(new Date())
-    setRangeStart(addPeriod(startOfPeriod(new Date(), granularity), granularity, -1))
+    setRangeStart(rangeAnchor(new Date(), granularity))
   }
 
   // Mini calendar (sidebar): jump the visible range to whatever day the user picks.
   function selectDate(date: Date | undefined) {
     if (!date) return
     setSelectedDate(date)
-    setRangeStart(addPeriod(startOfPeriod(date, granularity), granularity, -1))
+    setRangeStart(rangeAnchor(date, granularity))
   }
 
   function updateProject(updated: Project) {
     setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
   }
 
-  const NAV_ITEMS: Array<{ screen: Screen; label: string; icon: typeof CalendarRange }> = [
-    { screen: 'view', label: 'Visão detalhada', icon: CalendarRange },
-    { screen: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-  ]
+  const SCREEN_ICON: Record<Screen, typeof CalendarRange> = { view: CalendarRange, dashboard: BarChart3 }
+  const SCREEN_TITLE: Record<Screen, string> = { view: 'Visão detalhada', dashboard: 'Dashboard' }
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-muted/30 p-4">
-        <div className="mx-auto flex h-[calc(100vh-2rem)] max-w-[1500px] flex-col overflow-hidden rounded-2xl border bg-card shadow-sm">
-          <header className="flex flex-wrap items-center gap-6 border-b px-6 py-3">
-            <div className="flex shrink-0 items-center gap-2">
+      <div className="h-screen bg-card">
+        <div className="flex h-full flex-col overflow-hidden">
+          <header className="flex flex-wrap items-center gap-2 border-b px-6 py-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Alternar menu lateral"
+              onClick={() => setSidebarOpen((v) => !v)}
+            >
+              <Menu className="size-4" />
+            </Button>
+            <div className="flex shrink-0 items-center gap-2 pr-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <CalendarDays className="size-4" />
               </div>
               <span className="font-semibold">Capacity View</span>
             </div>
 
-            <nav className="flex items-center gap-1">
-              {NAV_ITEMS.map(({ screen: s, label, icon: Icon }) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setScreen(s)}
-                  className={cn(
-                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
-                    screen === s
-                      ? 'bg-muted font-medium text-foreground'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <Icon className="size-4" />
-                  {label}
-                </button>
-              ))}
-            </nav>
-          </header>
-
-          <div className="flex flex-wrap items-center gap-3 border-b px-6 py-3">
             <Button variant="outline" size="sm" className="rounded-full" onClick={goToToday}>
               Hoje
             </Button>
@@ -131,45 +130,70 @@ function App() {
             <span className="text-xl font-medium">
               {periodRangeLabel(columns[0].start, columns[columns.length - 1].end)}
             </span>
-            <span className="rounded-full border bg-muted/50 px-2.5 py-0.5 text-xs text-muted-foreground">
-              {GRANULARITY_CONFIG[granularity].label}
-            </span>
 
-            {screen === 'view' && (
-              <div className="ml-auto flex flex-wrap items-center gap-2">
-                <div className="flex gap-1 rounded-full border p-1">
-                  {(Object.keys(GROUPING_LABEL) as Grouping[]).map((g) => (
+            <div className="ml-auto flex flex-wrap items-center gap-1">
+              {screen === 'view' && (
+                <>
+                  <Select value={grouping} onValueChange={(v) => setGrouping(v as Grouping)}>
+                    <SelectTrigger className="rounded-full" size="sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(GROUPING_LABEL) as Grouping[]).map((g) => (
+                        <SelectItem key={g} value={g}>
+                          {GROUPING_LABEL[g]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={granularity} onValueChange={(v) => changeGranularity(v as Granularity)}>
+                    <SelectTrigger className="rounded-full" size="sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(GRANULARITY_CONFIG) as Granularity[]).map((g) => (
+                        <SelectItem key={g} value={g}>
+                          {GRANULARITY_CONFIG[g].label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
+
+              <Button variant="ghost" size="icon" aria-label="Buscar">
+                <Search className="size-4" />
+              </Button>
+              <Button variant="ghost" size="icon" aria-label="Ajuda">
+                <CircleHelp className="size-4" />
+              </Button>
+              <Button variant="ghost" size="icon" aria-label="Configurações">
+                <Settings className="size-4" />
+              </Button>
+
+              <div className="ml-1 flex items-center overflow-hidden rounded-full border">
+                {(Object.keys(SCREEN_ICON) as Screen[]).map((s, i) => {
+                  const Icon = SCREEN_ICON[s]
+                  return (
                     <Button
-                      key={g}
+                      key={s}
                       type="button"
-                      variant={grouping === g ? 'default' : 'ghost'}
-                      size="sm"
-                      className="rounded-full"
-                      onClick={() => setGrouping(g)}
+                      variant={screen === s ? 'default' : 'ghost'}
+                      size="icon"
+                      aria-label={SCREEN_TITLE[s]}
+                      onClick={() => setScreen(s)}
+                      className={cn('rounded-none', i > 0 && 'border-l')}
                     >
-                      {GROUPING_LABEL[g]}
+                      <Icon className="size-4" />
                     </Button>
-                  ))}
-                </div>
-                <div className="flex gap-1 rounded-full border p-1">
-                  {(Object.keys(GRANULARITY_CONFIG) as Granularity[]).map((g) => (
-                    <Button
-                      key={g}
-                      type="button"
-                      variant={granularity === g ? 'default' : 'ghost'}
-                      size="sm"
-                      className="rounded-full"
-                      onClick={() => changeGranularity(g)}
-                    >
-                      {GRANULARITY_CONFIG[g].label}
-                    </Button>
-                  ))}
-                </div>
+                  )
+                })}
               </div>
-            )}
-          </div>
+            </div>
+          </header>
 
           <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
+            {sidebarOpen && (
             <aside className="flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-b p-4 lg:w-64 lg:border-r lg:border-b-0">
               <div className="flex flex-col gap-2 [&>button]:w-full [&>button]:justify-center">
                 <AllocationForm
@@ -179,13 +203,22 @@ function App() {
                 />
                 <SimulationDialog resources={resources} allocations={allocations} />
               </div>
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={selectDate}
-                className="hidden w-full rounded-xl border lg:block"
-              />
+              <Collapsible defaultOpen={false} className="hidden lg:block">
+                <CollapsibleTrigger className="flex w-full items-center gap-2 px-1 py-1 text-sm text-muted-foreground data-[state=open]:[&>svg]:rotate-180">
+                  <ChevronDown className="size-4 transition-transform" />
+                  Calendário
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={selectDate}
+                    className="mt-2 w-full rounded-xl border"
+                  />
+                </CollapsibleContent>
+              </Collapsible>
             </aside>
+            )}
 
             <main className="flex-1 overflow-y-auto p-4">
               {screen === 'dashboard' ? (

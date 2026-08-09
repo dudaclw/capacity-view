@@ -1,32 +1,164 @@
 import type { Allocation, Project, Resource } from './types'
-import { addDays, startOfWeek, toISO } from './capacity'
 
+// RF03: one color per project, reused across the app — one swatch per vendor/tool.
+export const PROJECT_PALETTE = [
+  '#2274A5',
+  '#816C61',
+  '#B98F2B',
+  '#4C8C6B',
+  '#A5527A',
+  '#C2622D',
+  '#3D6B6B',
+]
+
+// Legend for the color picker (project-dialog.tsx) — what each palette color stands for.
+export const PROJECT_COLOR_NAMES: Record<string, string> = {
+  '#2274A5': 'Reunião com cliente',
+  '#816C61': 'Intercom',
+  '#B98F2B': 'GoTo',
+  '#4C8C6B': 'Freshworks',
+  '#A5527A': 'monday.com',
+  '#C2622D': 'Hubspot',
+  '#3D6B6B': 'Nortrez',
+}
+
+// Imported from "Portfólio | Projetos" (2026-08-07). Every person who appears as
+// "Resp. Projetos", "Analista Implantação", or "PO" becomes a resource; the spreadsheet
+// has no weekly-capacity field, so everyone is set to a flat 40h/semana (CLT) per your call.
+// Names trimmed to first + second name. Eduardo Schio removed per your call (his one
+// allocation on p8 went with him).
 export const resources: Resource[] = [
-  { id: 'r1', name: 'Ana Souza', weeklyCapacityHours: 40 },
-  { id: 'r2', name: 'Bruno Lima', weeklyCapacityHours: 40 },
-  { id: 'r3', name: 'Carla Nunes', weeklyCapacityHours: 30 },
-  { id: 'r4', name: 'Diego Alves', weeklyCapacityHours: 40 },
+  { id: 'r1', name: 'Luana Daby', weeklyCapacityHours: 40, roles: ['GP'] },
+  { id: 'r2', name: 'Adriel Rengel', weeklyCapacityHours: 40, roles: ['Implantação'] },
+  { id: 'r3', name: 'Jhon Carson', weeklyCapacityHours: 40, roles: ['Implantação', 'PO'] },
+  { id: 'r4', name: 'Eduarda Kacprzak', weeklyCapacityHours: 40, roles: ['GP'] },
+  { id: 'r5', name: 'Rodrigo Cardoso', weeklyCapacityHours: 40, roles: ['Implantação'] },
+  { id: 'r6', name: 'João Lorenço', weeklyCapacityHours: 40, roles: ['GP'] },
+  { id: 'r8', name: 'Tiago Zarth', weeklyCapacityHours: 40, roles: ['Implantação'] },
+  { id: 'r9', name: 'Fernando Gobetti', weeklyCapacityHours: 40, roles: ['Implantação'] },
+  { id: 'r10', name: 'Renato Henrique', weeklyCapacityHours: 40, roles: ['Implantação'] },
+  { id: 'r11', name: 'Marciel Alves', weeklyCapacityHours: 40, roles: ['PO'] },
 ]
 
-// RF03: one color per project, reused across the app.
-export const PROJECT_PALETTE = ['#2274A5', '#816C61', '#B98F2B', '#4C8C6B', '#A5527A']
-
-const today = startOfWeek(new Date())
-const iso = (offsetDays: number) => toISO(addDays(today, offsetDays))
-
+// status: "Em andamento" / "Bloqueado" / "Em Pausa" -> ativo (your call); everything else
+// (e.g. "Em revisão") -> inativo. color follows the project's Vendor column.
+// Rows missing a Cronograma planejado start/end fall back to a 4-week window from today.
 export const projects: Project[] = [
-  { id: 'p1', name: 'Portal Cliente', color: PROJECT_PALETTE[0], status: 'ativo', startDate: iso(-30), endDate: iso(60) },
-  { id: 'p2', name: 'Migração ERP', color: PROJECT_PALETTE[1], status: 'ativo', startDate: iso(-14), endDate: iso(30) },
-  { id: 'p3', name: 'App Mobile', color: PROJECT_PALETTE[2], status: 'ativo', startDate: iso(-20), endDate: iso(90) },
-  { id: 'p4', name: 'Suporte N2', color: PROJECT_PALETTE[3], status: 'ativo', startDate: iso(-40), endDate: iso(120) },
+  { id: 'p1', name: 'Freshservice - Simpar', color: '#4C8C6B', status: 'ativo', startDate: '2025-12-12', endDate: '2026-06-26' },
+  { id: 'p2', name: 'Ifood', color: '#816C61', status: 'ativo', startDate: '2025-08-27', endDate: '2025-09-26' },
+  { id: 'p3', name: 'BEM.CARE S/A | GoTo', color: '#B98F2B', status: 'ativo', startDate: '2026-03-09', endDate: '2026-03-31' },
+  { id: 'p4', name: 'Serviço Migração | SIN Implantes | Freshdesk omni', color: '#4C8C6B', status: 'ativo', startDate: '2025-10-20', endDate: '2026-01-16' },
+  { id: 'p5', name: 'A Omni S/A Crédito | Freshservice - Freshchat', color: '#4C8C6B', status: 'ativo', startDate: '2025-06-30', endDate: '2025-11-28' },
+  { id: 'p6', name: 'Lukx', color: '#816C61', status: 'ativo', startDate: '2025-08-28', endDate: '2025-11-14' },
+  { id: 'p7', name: 'AMPARO BRASIL', color: '#4C8C6B', status: 'ativo', startDate: '2025-11-10', endDate: '2026-01-19' },
+  { id: 'p8', name: 'ONB | Feira da Borracha | Intercom', color: '#816C61', status: 'ativo', startDate: '2026-08-28', endDate: '2026-08-28' },
+  { id: 'p9', name: 'Omni (Financeira)', color: '#4C8C6B', status: 'ativo', startDate: '2026-01-28', endDate: '2026-05-08' },
+  { id: 'p10', name: 'HubSpot - Nortrez', color: '#C2622D', status: 'ativo', startDate: '2026-02-02', endDate: '2026-04-10' },
+  { id: 'p11', name: 'Befly | Migração de contas', color: '#A5527A', status: 'ativo', startDate: '2026-01-01', endDate: '2026-01-30' },
+  { id: 'p12', name: 'FIREMASTER SERVICOS E EQUIPAMENTOS CONTRA INCENDIOS LTDA / Solubase', color: '#B98F2B', status: 'ativo', startDate: '2026-05-06', endDate: '2026-05-22' },
+  { id: 'p13', name: 'Intercom - Welhome', color: '#816C61', status: 'ativo', startDate: '2026-03-23', endDate: '2026-05-14' },
+  { id: 'p14', name: 'WELHOME TECNOLOGIA E SERVICOS S.A.', color: '#B98F2B', status: 'ativo', startDate: '2026-03-27', endDate: '2026-04-20' },
+  { id: 'p15', name: 'Shift', color: '#4C8C6B', status: 'ativo', startDate: '2026-08-07', endDate: '2026-09-04' },
+  { id: 'p16', name: 'Brinov (Parceiro)', color: '#4C8C6B', status: 'ativo', startDate: '2026-05-29', endDate: '2026-08-03' },
+  { id: 'p17', name: 'Bellinati Perez | Carteira PAN', color: '#816C61', status: 'ativo', startDate: '2026-08-07', endDate: '2026-09-04' },
+  { id: 'p18', name: 'Shift | Integração Freshservice e Jira', color: '#4C8C6B', status: 'ativo', startDate: '2026-06-29', endDate: '2026-09-18' },
+  { id: 'p19', name: 'MAXUEL NUNES CORDEIRO - CartoGest', color: '#B98F2B', status: 'ativo', startDate: '2026-07-01', endDate: '2026-07-24' },
+  { id: 'p20', name: 'SMC | Grupo Comporte | 20h', color: '#A5527A', status: 'ativo', startDate: '2026-08-03', endDate: '2026-09-04' },
+  { id: 'p21', name: 'Bontempo', color: '#A5527A', status: 'ativo', startDate: '2026-08-10', endDate: '2026-10-14' },
+  { id: 'p22', name: 'Epay | Migração de Processos Fluig > Monday', color: '#A5527A', status: 'ativo', startDate: '2026-08-10', endDate: '2026-11-30' },
+  { id: 'p23', name: 'KELSON LOPES SOCIEDADE INDIVIDUAL DE ADVOCACIA', color: '#B98F2B', status: 'ativo', startDate: '2026-07-06', endDate: '2026-08-07' },
+  { id: 'p24', name: 'StudioPanda', color: '#A5527A', status: 'ativo', startDate: '2026-07-09', endDate: '2026-07-24' },
+  { id: 'p25', name: 'SOLUCAO UTIL ASSESSORIA DE COBRANCA VENDAS E TURISMO LTDA', color: '#B98F2B', status: 'ativo', startDate: '2026-07-16', endDate: '2026-08-14' },
+  { id: 'p26', name: 'ARIOSVALDO SOARES MAGALHAES - Capim Ferro', color: '#B98F2B', status: 'ativo', startDate: '2026-07-27', endDate: '2026-08-21' },
+  { id: 'p27', name: 'SMC - IFOOD', color: '#816C61', status: 'ativo', startDate: '2026-08-07', endDate: '2026-09-04' },
+  { id: 'p28', name: 'CONECTA INTERMEDIACOES & NEGOCIOS LTDA', color: '#B98F2B', status: 'ativo', startDate: '2026-08-06', endDate: '2026-08-28' },
+  { id: 'p29', name: 'PS | Amais Educação | Intercom', color: '#816C61', status: 'ativo', startDate: '2026-08-10', endDate: '2026-08-31' },
+  { id: 'p30', name: 'PS | Casar.com | Intercom', color: '#816C61', status: 'ativo', startDate: '2026-08-07', endDate: '2026-09-04' },
+  { id: 'p31', name: 'Desenvolvimento | Altec', color: '#3D6B6B', status: 'inativo', startDate: '2026-08-07', endDate: '2026-09-04' },
+  { id: 'p32', name: 'SMC - Simpar', color: '#4C8C6B', status: 'ativo', startDate: '2026-08-07', endDate: '2026-09-04' },
+  { id: 'p33', name: 'CRUVINEL & CRUVINEL CONSULTORIAS LTDA | EvidJuri', color: '#B98F2B', status: 'ativo', startDate: '2026-08-07', endDate: '2026-09-04' },
+  { id: 'p34', name: 'ZIPPI', color: '#816C61', status: 'ativo', startDate: '2026-08-07', endDate: '2026-09-04' },
 ]
 
+// weeklyHours = "Horas contratadas" ÷ duração do projeto em semanas (your call). Where the
+// spreadsheet had no "Horas contratadas", falls back to 8h/semana. Both Resp. Projetos and
+// Analista Implantação get an allocation on the same project; when a role lists more than
+// one person, each gets the same weeklyHours (the sheet doesn't say how it splits between them).
 export const initialAllocations: Allocation[] = [
-  { id: 'a1', resourceId: 'r1', projectId: 'p1', startDate: iso(-7), endDate: iso(20), weeklyHours: 20 },
-  { id: 'a2', resourceId: 'r1', projectId: 'p2', startDate: iso(0), endDate: iso(14), weeklyHours: 24 },
-  { id: 'a3', resourceId: 'r2', projectId: 'p3', startDate: iso(-14), endDate: iso(35), weeklyHours: 40 },
-  { id: 'a4', resourceId: 'r3', projectId: 'p1', startDate: iso(3), endDate: iso(24), weeklyHours: 16 },
-  { id: 'a5', resourceId: 'r3', projectId: 'p4', startDate: iso(10), endDate: iso(17), weeklyHours: 20 },
-  { id: 'a6', resourceId: 'r4', projectId: 'p2', startDate: iso(-3), endDate: iso(10), weeklyHours: 20 },
-  { id: 'a7', resourceId: 'r4', projectId: 'p4', startDate: iso(0), endDate: iso(28), weeklyHours: 24 },
+  { id: 'a1', resourceId: 'r1', projectId: 'p1', startDate: '2025-12-12', endDate: '2026-06-26', weeklyHours: 21.4 },
+  { id: 'a2', resourceId: 'r2', projectId: 'p1', startDate: '2025-12-12', endDate: '2026-06-26', weeklyHours: 21.4 },
+  { id: 'a3', resourceId: 'r1', projectId: 'p2', startDate: '2025-08-27', endDate: '2025-09-26', weeklyHours: 40 },
+  { id: 'a4', resourceId: 'r3', projectId: 'p2', startDate: '2025-08-27', endDate: '2025-09-26', weeklyHours: 40 },
+  { id: 'a5', resourceId: 'r4', projectId: 'p3', startDate: '2026-03-09', endDate: '2026-03-31', weeklyHours: 2.2 },
+  { id: 'a6', resourceId: 'r5', projectId: 'p3', startDate: '2026-03-09', endDate: '2026-03-31', weeklyHours: 2.2 },
+  { id: 'a7', resourceId: 'r1', projectId: 'p4', startDate: '2025-10-20', endDate: '2026-01-16', weeklyHours: 8 },
+  { id: 'a8', resourceId: 'r3', projectId: 'p4', startDate: '2025-10-20', endDate: '2026-01-16', weeklyHours: 8 },
+  { id: 'a9', resourceId: 'r1', projectId: 'p5', startDate: '2025-06-30', endDate: '2025-11-28', weeklyHours: 4.8 },
+  { id: 'a10', resourceId: 'r4', projectId: 'p5', startDate: '2025-06-30', endDate: '2025-11-28', weeklyHours: 4.8 },
+  { id: 'a11', resourceId: 'r3', projectId: 'p5', startDate: '2025-06-30', endDate: '2025-11-28', weeklyHours: 4.8 },
+  { id: 'a12', resourceId: 'r1', projectId: 'p6', startDate: '2025-08-28', endDate: '2025-11-14', weeklyHours: 3.2 },
+  { id: 'a13', resourceId: 'r3', projectId: 'p6', startDate: '2025-08-28', endDate: '2025-11-14', weeklyHours: 3.2 },
+  { id: 'a14', resourceId: 'r1', projectId: 'p7', startDate: '2025-11-10', endDate: '2026-01-19', weeklyHours: 8 },
+  { id: 'a15', resourceId: 'r6', projectId: 'p7', startDate: '2025-11-10', endDate: '2026-01-19', weeklyHours: 8 },
+  { id: 'a16', resourceId: 'r2', projectId: 'p7', startDate: '2025-11-10', endDate: '2026-01-19', weeklyHours: 8 },
+  { id: 'a17', resourceId: 'r4', projectId: 'p8', startDate: '2026-08-28', endDate: '2026-08-28', weeklyHours: 30 },
+  { id: 'a19', resourceId: 'r5', projectId: 'p8', startDate: '2026-08-28', endDate: '2026-08-28', weeklyHours: 30 },
+  { id: 'a20', resourceId: 'r1', projectId: 'p9', startDate: '2026-01-28', endDate: '2026-05-08', weeklyHours: 12.5 },
+  { id: 'a21', resourceId: 'r4', projectId: 'p9', startDate: '2026-01-28', endDate: '2026-05-08', weeklyHours: 12.5 },
+  { id: 'a22', resourceId: 'r3', projectId: 'p9', startDate: '2026-01-28', endDate: '2026-05-08', weeklyHours: 12.5 },
+  { id: 'a23', resourceId: 'r1', projectId: 'p10', startDate: '2026-02-02', endDate: '2026-04-10', weeklyHours: 8 },
+  { id: 'a24', resourceId: 'r8', projectId: 'p10', startDate: '2026-02-02', endDate: '2026-04-10', weeklyHours: 8 },
+  { id: 'a25', resourceId: 'r6', projectId: 'p11', startDate: '2026-01-01', endDate: '2026-01-30', weeklyHours: 8 },
+  { id: 'a26', resourceId: 'r8', projectId: 'p11', startDate: '2026-01-01', endDate: '2026-01-30', weeklyHours: 8 },
+  { id: 'a27', resourceId: 'r4', projectId: 'p12', startDate: '2026-05-06', endDate: '2026-05-22', weeklyHours: 3.1 },
+  { id: 'a28', resourceId: 'r5', projectId: 'p12', startDate: '2026-05-06', endDate: '2026-05-22', weeklyHours: 3.1 },
+  { id: 'a29', resourceId: 'r1', projectId: 'p13', startDate: '2026-03-23', endDate: '2026-05-14', weeklyHours: 13.5 },
+  { id: 'a30', resourceId: 'r3', projectId: 'p13', startDate: '2026-03-23', endDate: '2026-05-14', weeklyHours: 13.5 },
+  { id: 'a31', resourceId: 'r1', projectId: 'p14', startDate: '2026-03-27', endDate: '2026-04-20', weeklyHours: 2.0 },
+  { id: 'a32', resourceId: 'r5', projectId: 'p14', startDate: '2026-03-27', endDate: '2026-04-20', weeklyHours: 2.0 },
+  { id: 'a33', resourceId: 'r1', projectId: 'p15', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 8 },
+  { id: 'a34', resourceId: 'r2', projectId: 'p15', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 8 },
+  { id: 'a35', resourceId: 'r4', projectId: 'p16', startDate: '2026-05-29', endDate: '2026-08-03', weeklyHours: 4.8 },
+  { id: 'a36', resourceId: 'r2', projectId: 'p16', startDate: '2026-05-29', endDate: '2026-08-03', weeklyHours: 4.8 },
+  { id: 'a37', resourceId: 'r1', projectId: 'p17', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 24.0 },
+  { id: 'a38', resourceId: 'r9', projectId: 'p17', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 24.0 },
+  { id: 'a39', resourceId: 'r1', projectId: 'p18', startDate: '2026-06-29', endDate: '2026-09-18', weeklyHours: 8 },
+  { id: 'a40', resourceId: 'r4', projectId: 'p18', startDate: '2026-06-29', endDate: '2026-09-18', weeklyHours: 8 },
+  { id: 'a41', resourceId: 'r2', projectId: 'p18', startDate: '2026-06-29', endDate: '2026-09-18', weeklyHours: 8 },
+  { id: 'a42', resourceId: 'r6', projectId: 'p19', startDate: '2026-07-01', endDate: '2026-07-24', weeklyHours: 2.1 },
+  { id: 'a43', resourceId: 'r5', projectId: 'p19', startDate: '2026-07-01', endDate: '2026-07-24', weeklyHours: 2.1 },
+  { id: 'a44', resourceId: 'r4', projectId: 'p20', startDate: '2026-08-03', endDate: '2026-09-04', weeklyHours: 3.3 },
+  { id: 'a45', resourceId: 'r8', projectId: 'p20', startDate: '2026-08-03', endDate: '2026-09-04', weeklyHours: 3.3 },
+  { id: 'a46', resourceId: 'r6', projectId: 'p21', startDate: '2026-08-10', endDate: '2026-10-14', weeklyHours: 6.5 },
+  { id: 'a47', resourceId: 'r10', projectId: 'p21', startDate: '2026-08-10', endDate: '2026-10-14', weeklyHours: 6.5 },
+  { id: 'a48', resourceId: 'r4', projectId: 'p22', startDate: '2026-08-10', endDate: '2026-11-30', weeklyHours: 8.1 },
+  { id: 'a49', resourceId: 'r8', projectId: 'p22', startDate: '2026-08-10', endDate: '2026-11-30', weeklyHours: 8.1 },
+  { id: 'a50', resourceId: 'r6', projectId: 'p23', startDate: '2026-07-06', endDate: '2026-08-07', weeklyHours: 1.1 },
+  { id: 'a51', resourceId: 'r5', projectId: 'p23', startDate: '2026-07-06', endDate: '2026-08-07', weeklyHours: 1.1 },
+  { id: 'a52', resourceId: 'r6', projectId: 'p24', startDate: '2026-07-09', endDate: '2026-07-24', weeklyHours: 4.7 },
+  { id: 'a53', resourceId: 'r8', projectId: 'p24', startDate: '2026-07-09', endDate: '2026-07-24', weeklyHours: 4.7 },
+  { id: 'a54', resourceId: 'r6', projectId: 'p25', startDate: '2026-07-16', endDate: '2026-08-14', weeklyHours: 1.7 },
+  { id: 'a55', resourceId: 'r5', projectId: 'p25', startDate: '2026-07-16', endDate: '2026-08-14', weeklyHours: 1.7 },
+  { id: 'a56', resourceId: 'r6', projectId: 'p26', startDate: '2026-07-27', endDate: '2026-08-21', weeklyHours: 2.0 },
+  { id: 'a57', resourceId: 'r5', projectId: 'p26', startDate: '2026-07-27', endDate: '2026-08-21', weeklyHours: 2.0 },
+  { id: 'a58', resourceId: 'r6', projectId: 'p27', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 2.5 },
+  { id: 'a59', resourceId: 'r5', projectId: 'p27', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 2.5 },
+  { id: 'a60', resourceId: 'r6', projectId: 'p28', startDate: '2026-08-06', endDate: '2026-08-28', weeklyHours: 2.2 },
+  { id: 'a61', resourceId: 'r5', projectId: 'p28', startDate: '2026-08-06', endDate: '2026-08-28', weeklyHours: 2.2 },
+  { id: 'a62', resourceId: 'r4', projectId: 'p29', startDate: '2026-08-10', endDate: '2026-08-31', weeklyHours: 8 },
+  { id: 'a63', resourceId: 'r1', projectId: 'p30', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 8 },
+  { id: 'a64', resourceId: 'r4', projectId: 'p31', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 8 },
+  { id: 'a65', resourceId: 'r1', projectId: 'p32', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 8 },
+  { id: 'a66', resourceId: 'r10', projectId: 'p32', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 8 },
+  { id: 'a67', resourceId: 'r6', projectId: 'p33', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 1.8 },
+  { id: 'a68', resourceId: 'r5', projectId: 'p33', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 1.8 },
+  { id: 'a69', resourceId: 'r4', projectId: 'p34', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 8 },
+  // Marciel Alves Caparelli — "PO" column (D), not imported in the first pass.
+  { id: 'a70', resourceId: 'r11', projectId: 'p15', startDate: '2026-08-07', endDate: '2026-09-04', weeklyHours: 8 },
+  { id: 'a71', resourceId: 'r11', projectId: 'p16', startDate: '2026-05-29', endDate: '2026-08-03', weeklyHours: 4.8 },
+  { id: 'a72', resourceId: 'r11', projectId: 'p18', startDate: '2026-06-29', endDate: '2026-09-18', weeklyHours: 8 },
+  { id: 'a73', resourceId: 'r11', projectId: 'p20', startDate: '2026-08-03', endDate: '2026-09-04', weeklyHours: 3.3 },
+  { id: 'a74', resourceId: 'r11', projectId: 'p21', startDate: '2026-08-10', endDate: '2026-10-14', weeklyHours: 6.5 },
+  { id: 'a75', resourceId: 'r11', projectId: 'p22', startDate: '2026-08-10', endDate: '2026-11-30', weeklyHours: 8.1 },
+  { id: 'a76', resourceId: 'r11', projectId: 'p29', startDate: '2026-08-10', endDate: '2026-08-31', weeklyHours: 8 },
 ]

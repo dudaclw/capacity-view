@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { PROJECT_PALETTE } from '@/lib/mock-data'
+import { PROJECT_COLOR_NAMES, PROJECT_PALETTE } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 import type { Project } from '@/lib/types'
 
@@ -81,13 +81,15 @@ export function ProjectDialog({
                   key={c}
                   type="button"
                   onClick={() => setColor(c)}
-                  aria-label={c}
+                  aria-pressed={color === c}
                   className={cn(
-                    'h-7 w-7 rounded-full border-2',
-                    color === c ? 'border-foreground' : 'border-transparent',
+                    'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                    color === c ? 'border-foreground' : 'border-transparent hover:border-muted-foreground/40',
                   )}
-                  style={{ backgroundColor: c }}
-                />
+                >
+                  <span className="size-3.5 shrink-0 rounded-full" style={{ backgroundColor: c }} />
+                  {PROJECT_COLOR_NAMES[c]}
+                </button>
               ))}
             </div>
           </div>

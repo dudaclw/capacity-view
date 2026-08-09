@@ -70,6 +70,16 @@ export function startOfPeriod(date: Date, granularity: Granularity): Date {
   }
 }
 
+/**
+ * First visible column for a given granularity. Week/month keep one prior unit of
+ * context before `date`. Day view instead always starts Monday of `date`'s week, so
+ * it renders exactly one 7-day (Monday-Sunday) page instead of a scrolling window.
+ */
+export function rangeAnchor(date: Date, granularity: Granularity): Date {
+  if (granularity === 'day') return startOfWeek(date)
+  return addPeriod(startOfPeriod(date, granularity), granularity, -1)
+}
+
 function dayOffset(from: Date, to: Date): number {
   return Math.round((to.getTime() - from.getTime()) / DAY_MS)
 }
@@ -391,5 +401,125 @@ export function computeSimulation(
 
       const { percent: resultPercent, band } = computeLoad(resource, [...resourceAllocations, hypothetical], weeks)
       return { resource, currentPercent, resultPercent, band }
+    })
+}
+
+/**
+ * Risco antecipado #1 (bus factor): active projects staffed by exactly one resource —
+ * if that person is out, nobody else on record can cover it. Reads ALOCACAO only, no
+ * new "backup" field exists, so this is a coverage count, not a formal succession plan.
+ */
+export function computeBusFactor(
+  projects: Project[],
+  allocations: Allocation[],
+  weeks: Date[],
+): Project[] {
+  return projects.filter((project) => {
+    if (project.status !== 'ativo') return false
+    const resourceIds = new Set(
+      allocations
+        .filter((a) => a.projectId === project.id && weeks.some((w) => weekHours([a], w) > 0))
+        .map((a) => a.resourceId),
+    )
+    return resourceIds.size === 1
+  })
+}
+
+export interface UpcomingOverallocation {
+  resource: Resource
+  weekStart: Date
+  percent: number
+}
+
+/**
+ * Risco antecipado #2: the first future week (starting this week) each resource's
+ * already-booked allocations exceed capacity — read straight off the schedule that's
+ * on record, not a statistical projection, so "estoura em 12/08" is a fact, not a guess.
+ */
+export function computeUpcomingOverallocations(
+  resources: Resource[],
+  allocations: Allocation[],
+  weeksAhead: number,
+): UpcomingOverallocation[] {
+  const weeks = buildWeeks(startOfWeek(new Date()), weeksAhead)
+  const result: UpcomingOverallocation[] = []
+  for (const resource of resources) {
+    const resourceAllocations = allocations.filter((a) => a.resourceId === resource.id)
+    const firstOverWeek = weeks.find((w) => weekHours(resourceAllocations, w) > resource.weeklyCapacityHours)
+    if (!firstOverWeek) continue
+    const percent = Math.round((weekHours(resourceAllocations, firstOverWeek) / resource.weeklyCapacityHours) * 100)
+    result.push({ resource, weekStart: firstOverWeek, percent })
+  }
+  return result.sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime())
+}
+
+export interface BenchEntry {
+  resource: Resource
+  freeHours: number
+  percent: number
+}
+
+/**
+ * Risco antecipado #3 (bench time): the mirror of overallocation — who has slack this
+ * week, and how much. `computeLoad`'s peak-week view hides this (one busy week reads as
+ * "not idle" even if every other week is empty), so this reads a single week directly.
+ */
+export function computeBench(resources: Resource[], allocations: Allocation[], weekStart: Date): BenchEntry[] {
+  return resources
+    .map((resource) => {
+      const hours = weekHours(allocations.filter((a) => a.resourceId === resource.id), weekStart)
+      const percent = Math.round((hours / resource.weeklyCapacityHours) * 100)
+      const freeHours = Math.round(Math.max(0, resource.weeklyCapacityHours - hours) * 10) / 10
+      return { resource, freeHours, percent }
+    })
+    .filter((entry) => entry.freeHours > 0)
+    .sort((a, b) => b.freeHours - a.freeHours)
+}
+
+export interface ProjectHealth {
+  project: Project
+  band: LoadBand['band']
+  reasons: string[]
+}
+
+/**
+ * Saúde de projeto: combines signals already on record — team overallocation (next 4
+ * weeks), deadline within 14 days, and bus-factor concentration. There's no % concluído
+ * or apontamento de horas field, so this can't know if work is actually on track; it
+ * only flags known risk factors. 0 flags = available, 1 = near-limit, 2+ = overallocated
+ * (reusing RN05's band names/colors — "overallocated" here reads as "at risk", not hours).
+ */
+export function computeProjectHealth(
+  projects: Project[],
+  resources: Resource[],
+  allocations: Allocation[],
+): ProjectHealth[] {
+  const today = new Date()
+  const nearWeeks = buildWeeks(startOfWeek(today), 4)
+  const resourceById = new Map(resources.map((r) => [r.id, r]))
+
+  return projects
+    .filter((project) => project.status === 'ativo')
+    .map((project) => {
+      const projectAllocations = allocations.filter((a) => a.projectId === project.id)
+      const resourceIds = [...new Set(projectAllocations.map((a) => a.resourceId))]
+      const reasons: string[] = []
+
+      const teamOverallocated = resourceIds.some((id) => {
+        const resource = resourceById.get(id)
+        if (!resource) return false
+        const resourceAllocations = allocations.filter((a) => a.resourceId === id)
+        return computeLoad(resource, resourceAllocations, nearWeeks).band === 'overallocated'
+      })
+      if (teamOverallocated) reasons.push('equipe sobrealocada nas próximas semanas')
+
+      const end = parseISO(project.endDate)
+      if (end >= today && end < addDays(today, 14)) reasons.push('prazo nos próximos 14 dias')
+
+      if (resourceIds.length === 1) reasons.push('depende de 1 única pessoa, sem backup')
+
+      const band: LoadBand['band'] =
+        reasons.length >= 2 ? 'overallocated' : reasons.length === 1 ? 'near-limit' : 'available'
+      return { project, band, reasons }
     })
 }

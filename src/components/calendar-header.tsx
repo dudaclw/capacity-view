@@ -13,7 +13,7 @@ export function CalendarHeader({
   labelText: string
 }) {
   return (
-    <div className="flex border-b bg-muted/40">
+    <div className="flex rounded-xl border bg-muted/40">
       <div className="shrink-0 px-3 py-2 text-sm font-medium" style={{ width: LABEL_WIDTH }}>
         {labelText}
       </div>
@@ -21,7 +21,7 @@ export function CalendarHeader({
         {columns.map((col, i) => {
           const isToday = periodContainsToday(col)
           return (
-            <div key={i} className="flex-1 border-l px-2 py-2 text-xs">
+            <div key={i} className="flex-1 px-2 py-2 text-xs">
               {granularity === 'day' ? (
                 <div className="flex flex-col items-center gap-1">
                   <span className="text-muted-foreground">{weekdayShort(col.start)}</span>

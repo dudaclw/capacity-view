@@ -1,7 +1,13 @@
+export type ResourceRole = 'Implantação' | 'PO' | 'GP'
+
 export interface Resource {
   id: string
   name: string
   weeklyCapacityHours: number
+  // Some people cover more than one role (e.g. a PO who's also the implementation
+  // analyst on a project) — a list, not a single value, so the grid can show them
+  // under every section they actually work in.
+  roles?: ResourceRole[]
 }
 
 export interface Project {

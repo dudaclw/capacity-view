@@ -1,13 +1,36 @@
-import { Clock, Gauge, TriangleAlert } from 'lucide-react'
+import { useState } from 'react'
+import { BatteryLow, CalendarClock, Clock, Gauge, TriangleAlert, Users } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { LOAD_BAND_STYLES } from '@/components/capacity-grid'
-import { computeProjectHours, computeTeamKpis, computeUtilizationTrend } from '@/lib/capacity'
+import {
+  computeBench,
+  computeBusFactor,
+  computeProjectHealth,
+  computeProjectHours,
+  computeTeamKpis,
+  computeUpcomingOverallocations,
+  computeUtilizationTrend,
+  startOfWeek,
+} from '@/lib/capacity'
 import type { TrendPoint } from '@/lib/capacity'
 import { cn } from '@/lib/utils'
-import type { Allocation, Project, Resource } from '@/lib/types'
+import type { Allocation, Project, Resource, ResourceRole } from '@/lib/types'
 
 const TREND_WEEKS = 5
+const OVERALLOCATION_HORIZON_WEEKS = 8
+
+const dateLabel = (date: Date) => date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })
+
+type RoleFilter = 'all' | ResourceRole
+const ROLE_FILTER_LABEL: Record<RoleFilter, string> = {
+  all: 'Todos os papéis',
+  Implantação: 'Implantador',
+  PO: 'PO',
+  GP: 'GP',
+}
 
 const BAND_TEXT = {
   available: 'text-emerald-700 dark:text-emerald-400',
@@ -36,16 +59,52 @@ export function Dashboard({
   allocations: Allocation[]
   loadWeeks: Date[]
 }) {
-  const kpis = computeTeamKpis(resources, allocations, loadWeeks)
-  const projectHours = computeProjectHours(projects, allocations, loadWeeks)
-  const trend = computeUtilizationTrend(resources, allocations, TREND_WEEKS)
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
 
-  const teamCapacity = resources.reduce((sum, r) => sum + r.weeklyCapacityHours, 0)
+  // Filtering resources first and deriving allocations/projects from that selection keeps
+  // every downstream metric (KPIs, saúde, bus factor, tendência...) consistent with each
+  // other — a project shows up only if someone in the selected role actually works on it.
+  const filteredResources =
+    roleFilter === 'all' ? resources : resources.filter((r) => r.roles?.includes(roleFilter))
+  const filteredResourceIds = new Set(filteredResources.map((r) => r.id))
+  const filteredAllocations =
+    roleFilter === 'all' ? allocations : allocations.filter((a) => filteredResourceIds.has(a.resourceId))
+  const touchedProjectIds = new Set(filteredAllocations.map((a) => a.projectId))
+  const filteredProjects = roleFilter === 'all' ? projects : projects.filter((p) => touchedProjectIds.has(p.id))
+
+  const kpis = computeTeamKpis(filteredResources, filteredAllocations, loadWeeks)
+  const projectHours = computeProjectHours(filteredProjects, filteredAllocations, loadWeeks)
+  const trend = computeUtilizationTrend(filteredResources, filteredAllocations, TREND_WEEKS)
+  const busFactorProjects = computeBusFactor(filteredProjects, filteredAllocations, loadWeeks)
+  const upcomingOverallocations = computeUpcomingOverallocations(
+    filteredResources,
+    filteredAllocations,
+    OVERALLOCATION_HORIZON_WEEKS,
+  )
+  const bench = computeBench(filteredResources, filteredAllocations, startOfWeek(new Date()))
+  const projectHealth = computeProjectHealth(filteredProjects, filteredResources, filteredAllocations)
+
+  const teamCapacity = filteredResources.reduce((sum, r) => sum + r.weeklyCapacityHours, 0)
   const maxProjectHours = Math.max(teamCapacity, ...projectHours.map((p) => p.avgWeeklyHours), 1)
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="flex items-center justify-end">
+        <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as RoleFilter)}>
+          <SelectTrigger className="rounded-full" size="sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(ROLE_FILTER_LABEL) as RoleFilter[]).map((role) => (
+              <SelectItem key={role} value={role}>
+                {ROLE_FILTER_LABEL[role]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="flex items-center gap-3">
             <Gauge className={cn('size-6 shrink-0', BAND_TEXT[kpis.avgUtilization.band])} />
@@ -72,7 +131,7 @@ export function Dashboard({
                   kpis.overallocatedCount > 0 && 'text-red-600 dark:text-red-400',
                 )}
               >
-                {kpis.overallocatedCount} de {resources.length}
+                {kpis.overallocatedCount} de {filteredResources.length}
               </div>
               <div className="text-muted-foreground text-xs">Recursos sobrealocados</div>
             </div>
@@ -87,7 +146,56 @@ export function Dashboard({
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="flex items-center gap-3">
+            <Users
+              className={cn(
+                'size-6 shrink-0',
+                busFactorProjects.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground',
+              )}
+            />
+            <div>
+              <div
+                className={cn(
+                  'text-2xl font-semibold',
+                  busFactorProjects.length > 0 && 'text-amber-600 dark:text-amber-400',
+                )}
+              >
+                {busFactorProjects.length} {busFactorProjects.length === 1 ? 'projeto' : 'projetos'}
+              </div>
+              <div className="text-muted-foreground text-xs">Bus factor — dependem de 1 única pessoa</div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Saúde dos projetos</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {projectHealth.map(({ project, band, reasons }) => (
+            <div key={project.id} className="flex items-center gap-3">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: project.color }} />
+              <span className="flex-1 truncate text-sm">{project.name}</span>
+              {reasons.length ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="secondary" className={LOAD_BAND_STYLES[band]}>
+                      {band === 'available' ? 'Saudável' : band === 'near-limit' ? 'Atenção' : 'Crítico'}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>{reasons.join(' · ')}</TooltipContent>
+                </Tooltip>
+              ) : (
+                <Badge variant="secondary" className={LOAD_BAND_STYLES[band]}>
+                  Saudável
+                </Badge>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -111,6 +219,51 @@ export function Dashboard({
           ))}
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Próximos estouros</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {upcomingOverallocations.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                Nenhuma sobrealocação prevista nas próximas {OVERALLOCATION_HORIZON_WEEKS} semanas.
+              </p>
+            ) : (
+              upcomingOverallocations.map(({ resource, weekStart, percent }) => (
+                <div key={resource.id} className="flex items-center gap-3 text-sm">
+                  <CalendarClock className="size-4 shrink-0 text-red-600 dark:text-red-400" />
+                  <span className="flex-1">
+                    <span className="font-medium">{resource.name}</span> estoura {percent}% em{' '}
+                    {dateLabel(weekStart)}
+                  </span>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Banco de horas — capacidade ociosa esta semana</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {bench.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Ninguém com capacidade livre esta semana.</p>
+            ) : (
+              bench.map(({ resource, freeHours, percent }) => (
+                <div key={resource.id} className="flex items-center gap-3 text-sm">
+                  <BatteryLow className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="flex-1">
+                    <span className="font-medium">{resource.name}</span> — {freeHours}h livres ({percent}% ocupado)
+                  </span>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>

@@ -94,7 +94,7 @@ export function SimulationDialog({
                   value={loadValue}
                   onChange={(e) => setLoadValue(Number(e.target.value))}
                 />
-                <div className="flex gap-1 rounded-md border p-1">
+                <div className="flex gap-1 rounded-full border p-1">
                   {(Object.keys(UNIT_LABEL) as LoadUnit[]).map((u) => (
                     <Button
                       key={u}
@@ -124,7 +124,7 @@ export function SimulationDialog({
           {selectedIds.length === 0 ? (
             <p className="text-muted-foreground text-sm">Selecione ao menos um recurso para ver o impacto.</p>
           ) : (
-            <div className="space-y-3 rounded-md border p-3">
+            <div className="space-y-3 rounded-xl bg-muted p-3">
               <p className="text-sm">{insight}</p>
               <div className="space-y-1.5">
                 {results.map(({ resource, currentPercent, resultPercent, band }) => (

@@ -14,7 +14,14 @@ import {
 } from '@/lib/capacity'
 import type { Granularity, Period } from '@/lib/capacity'
 import { cn } from '@/lib/utils'
-import { LABEL_WIDTH, LANE_HEIGHT, ROW_PADDING } from '@/components/capacity-grid'
+import {
+  ALLOCATION_CHIP_CLASS,
+  LABEL_WIDTH,
+  LANE_HEIGHT,
+  ROW_PADDING,
+  allocationChipStyle,
+  chipEdgeClass,
+} from '@/components/capacity-grid'
 import type { Allocation, Project, Resource } from '@/lib/types'
 
 /**
@@ -46,21 +53,27 @@ export function ProjectGrid({
   const resourceById = new Map(resources.map((r) => [r.id, r]))
 
   return (
-    <div className="relative rounded-md border">
+    <div className="relative flex flex-col gap-2">
       <CalendarHeader columns={columns} granularity={granularity} labelText="Projeto / Recurso" />
 
-      {projects.map((project) => {
+      {projects.map((project, projectIndex) => {
         const projectAllocations = allocations.filter((a) => a.projectId === project.id)
         const resourceIds = [...new Set(projectAllocations.map((a) => a.resourceId))]
 
         return (
-          <div key={project.id}>
+          <div
+            key={project.id}
+            className={cn(
+              'overflow-hidden rounded-xl',
+              projectIndex % 2 === 0 ? 'bg-card' : 'bg-card/60',
+            )}
+          >
             <ProjectDialog project={project} onSave={onUpdateProject}>
               {(open) => (
                 <button
                   type="button"
                   onClick={open}
-                  className="flex w-full items-center gap-2 border-b bg-muted/20 px-3 py-1.5 text-sm font-medium hover:bg-muted/40"
+                  className="flex w-full items-center gap-2 bg-muted/40 px-3 py-1.5 text-sm font-medium hover:bg-muted/70"
                 >
                   <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: project.color }} />
                   {project.name}
@@ -80,7 +93,7 @@ export function ProjectGrid({
               const laneCount = Math.max(1, ...Array.from(lanes.values(), (l) => l + 1))
 
               return (
-                <div key={resourceId} className="flex border-b last:border-b-0">
+                <div key={resourceId} className="flex">
                   <div
                     className="flex shrink-0 flex-col justify-center gap-1 py-2 pl-6 pr-3"
                     style={{ width: LABEL_WIDTH }}
@@ -105,7 +118,7 @@ export function ProjectGrid({
                           <div
                             key={i}
                             className={cn(
-                              'flex-1 border-l',
+                              'flex-1',
                               columnTint(overallocated, periodContainsToday(col), isWeekend(col.start)),
                             )}
                           />
@@ -113,35 +126,39 @@ export function ProjectGrid({
                       })}
                     </div>
                     {rowAllocations.map((alloc) => {
-                      const { left, width } = rangeToPercent(
-                        rangeStart,
-                        rangeEnd,
-                        parseISO(alloc.startDate),
-                        addDays(parseISO(alloc.endDate), 1),
-                      )
+                      const allocStart = parseISO(alloc.startDate)
+                      const allocEndExclusive = addDays(parseISO(alloc.endDate), 1)
+                      const { left, width } = rangeToPercent(rangeStart, rangeEnd, allocStart, allocEndExclusive)
                       const percent = Math.round((alloc.weeklyHours / resource.weeklyCapacityHours) * 100)
+                      const clippedLeft = allocStart < rangeStart
+                      const clippedRight = allocEndExclusive > rangeEnd
                       return (
-                        <Tooltip key={alloc.id}>
-                          <TooltipTrigger asChild>
-                            <div
-                              className="absolute rounded-md px-1.5 py-1 text-xs font-medium text-white shadow-sm overflow-hidden text-ellipsis whitespace-nowrap"
-                              style={{
-                                left: `${left}%`,
-                                width: `${width}%`,
-                                top: (lanes.get(alloc.id) ?? 0) * LANE_HEIGHT + ROW_PADDING / 2,
-                                height: LANE_HEIGHT - 4,
-                                backgroundColor: project.color,
-                              }}
-                            >
-                              {resource.name}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {resource.name} · {alloc.weeklyHours}h/sem ({percent}% da jornada)
-                            <br />
-                            {alloc.startDate} → {alloc.endDate}
-                          </TooltipContent>
-                        </Tooltip>
+                        <div
+                          key={alloc.id}
+                          className="absolute z-10"
+                          style={{
+                            left: `${left}%`,
+                            width: `${width}%`,
+                            top: (lanes.get(alloc.id) ?? 0) * LANE_HEIGHT + ROW_PADDING / 2,
+                            height: LANE_HEIGHT - 4,
+                          }}
+                        >
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div
+                                className={cn(ALLOCATION_CHIP_CLASS, chipEdgeClass(clippedLeft, clippedRight))}
+                                style={allocationChipStyle(project.color)}
+                              >
+                                {resource.name}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {resource.name} · {alloc.weeklyHours}h/sem ({percent}% da jornada)
+                              <br />
+                              {alloc.startDate} → {alloc.endDate}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                       )
                     })}
                   </div>

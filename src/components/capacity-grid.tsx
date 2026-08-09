@@ -15,12 +15,17 @@ import {
 } from '@/lib/capacity'
 import type { Granularity, Period } from '@/lib/capacity'
 import { cn } from '@/lib/utils'
-import type { Allocation, Project, Resource } from '@/lib/types'
+import type { Allocation, Project, Resource, ResourceRole } from '@/lib/types'
 
 // Shared with project-grid.tsx so the two grouping modes line up visually.
 export const LABEL_WIDTH = 200
-export const LANE_HEIGHT = 32
-export const ROW_PADDING = 16
+export const LANE_HEIGHT = 40
+export const ROW_PADDING = 28
+
+// Fixed section order for the "Por recurso" view. A resource with more than one role
+// (e.g. a PO who's also the implementation analyst) appears once per section it's in.
+const ROLE_ORDER: ResourceRole[] = ['Implantação', 'PO', 'GP']
+const UNASSIGNED_LABEL = 'Sem papel definido'
 
 // Shared with dashboard.tsx — the one status palette for available/near-limit/overallocated (RN05).
 export const LOAD_BAND_STYLES = {
@@ -28,6 +33,21 @@ export const LOAD_BAND_STYLES = {
   'near-limit': 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
   overallocated: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
 } as const
+
+// Shared with project-grid.tsx — Google Calendar-style event chip: tinted fill, solid left
+// accent border, instead of a flat filled block.
+export const ALLOCATION_CHIP_CLASS =
+  'h-full w-full rounded-md border-l-4 px-1.5 py-1 text-xs font-medium text-white shadow-sm overflow-hidden text-ellipsis whitespace-nowrap'
+
+export function allocationChipStyle(color: string) {
+  return { backgroundColor: `${color}26`, borderLeftColor: color }
+}
+
+/** RF04: rounds off the edge(s) that actually end within the visible range — a chip
+ *  clipped by the window keeps a square edge, so "continues off-screen" reads at a glance. */
+export function chipEdgeClass(clippedLeft: boolean, clippedRight: boolean) {
+  return cn(clippedLeft && 'rounded-l-none', clippedRight && 'rounded-r-none')
+}
 
 export function CapacityGrid({
   resources,
@@ -53,88 +73,119 @@ export function CapacityGrid({
   const { left: todayLeft } = rangeToPercent(rangeStart, rangeEnd, today, today)
   const projectById = new Map(projects.map((p) => [p.id, p]))
 
+  const groups = [
+    ...ROLE_ORDER.map((role) => ({
+      label: role,
+      resources: resources.filter((r) => r.roles?.includes(role)),
+    })),
+    { label: UNASSIGNED_LABEL, resources: resources.filter((r) => !r.roles?.length) },
+  ].filter((group) => group.resources.length > 0)
+
+  let rowIndex = 0
+
   return (
-    <div className="relative rounded-md border">
+    <div className="relative flex flex-col gap-2">
       <CalendarHeader columns={columns} granularity={granularity} labelText="Recurso" />
 
-      {resources.map((resource) => {
-        const resourceAllocations = allocations.filter((a) => a.resourceId === resource.id)
-        const lanes = assignLanes(resourceAllocations)
-        const laneCount = Math.max(1, ...Array.from(lanes.values(), (l) => l + 1))
-        const load = computeLoad(resource, resourceAllocations, loadWeeks)
-
-        return (
-          <div key={resource.id} className="flex border-b last:border-b-0">
-            <div
-              className="flex shrink-0 flex-col justify-center gap-1 px-3 py-2"
-              style={{ width: LABEL_WIDTH }}
-            >
-              <span className="text-sm font-medium">{resource.name}</span>
-              <Badge variant="secondary" className={cn('w-fit', LOAD_BAND_STYLES[load.band])}>
-                {load.percent}%
-              </Badge>
-            </div>
-            <div
-              className="relative flex-1"
-              style={{ height: laneCount * LANE_HEIGHT + ROW_PADDING }}
-            >
-              <div className="absolute inset-0 flex">
-                {columns.map((col, i) => {
-                  const overallocated = periodOverallocated(resourceAllocations, resource, col)
-                  return (
-                    <div
-                      key={i}
-                      className={cn(
-                        'flex-1 border-l',
-                        columnTint(overallocated, periodContainsToday(col), isWeekend(col.start)),
-                      )}
-                    />
-                  )
-                })}
-              </div>
-              {resourceAllocations.map((alloc) => {
-                const project = projectById.get(alloc.projectId)
-                if (!project) return null
-                const { left, width } = rangeToPercent(
-                  rangeStart,
-                  rangeEnd,
-                  parseISO(alloc.startDate),
-                  addDays(parseISO(alloc.endDate), 1),
-                )
-                const percent = Math.round((alloc.weeklyHours / resource.weeklyCapacityHours) * 100)
-                return (
-                  <ProjectDialog key={alloc.id} project={project} onSave={onUpdateProject}>
-                    {(open) => (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div
-                            onClick={open}
-                            className="absolute cursor-pointer rounded-md px-1.5 py-1 text-xs font-medium text-white shadow-sm overflow-hidden text-ellipsis whitespace-nowrap"
-                            style={{
-                              left: `${left}%`,
-                              width: `${width}%`,
-                              top: (lanes.get(alloc.id) ?? 0) * LANE_HEIGHT + ROW_PADDING / 2,
-                              height: LANE_HEIGHT - 4,
-                              backgroundColor: project.color,
-                            }}
-                          >
-                            {project.name}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {project.name} · {alloc.weeklyHours}h/sem ({percent}% da jornada)
-                          <br />
-                          {alloc.startDate} → {alloc.endDate}
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </ProjectDialog>
-                )
-              })}
-            </div>
+      {groups.map((group) => (
+        <div key={group.label} className="flex flex-col gap-2">
+          <div className="rounded-lg bg-muted/40 px-3 py-1.5 text-sm font-medium">
+            {group.label}{' '}
+            <span className="text-muted-foreground text-xs font-normal">({group.resources.length})</span>
           </div>
-        )
-      })}
+
+          {group.resources.map((resource) => {
+            const resourceAllocations = allocations.filter((a) => a.resourceId === resource.id)
+            const lanes = assignLanes(resourceAllocations)
+            const laneCount = Math.max(1, ...Array.from(lanes.values(), (l) => l + 1))
+            const load = computeLoad(resource, resourceAllocations, loadWeeks)
+            const zebra = rowIndex++ % 2 === 0
+
+            return (
+              <div
+                key={`${group.label}-${resource.id}`}
+                className={cn('flex overflow-hidden rounded-xl', zebra ? 'bg-card' : 'bg-card/60')}
+              >
+                <div
+                  className="flex shrink-0 flex-col justify-center gap-1 px-3 py-2"
+                  style={{ width: LABEL_WIDTH }}
+                >
+                  <span className="text-sm font-medium">{resource.name}</span>
+                  <Badge variant="secondary" className={cn('w-fit', LOAD_BAND_STYLES[load.band])}>
+                    {load.percent}%
+                  </Badge>
+                </div>
+                <div
+                  className="relative flex-1"
+                  style={{ height: laneCount * LANE_HEIGHT + ROW_PADDING }}
+                >
+                  <div className="absolute inset-0 flex">
+                    {columns.map((col, i) => {
+                      const overallocated = periodOverallocated(resourceAllocations, resource, col)
+                      return (
+                        <div
+                          key={i}
+                          className={cn(
+                            'flex-1',
+                            columnTint(overallocated, periodContainsToday(col), isWeekend(col.start)),
+                          )}
+                        />
+                      )
+                    })}
+                  </div>
+                  {resourceAllocations.map((alloc) => {
+                    const project = projectById.get(alloc.projectId)
+                    if (!project) return null
+                    const allocStart = parseISO(alloc.startDate)
+                    const allocEndExclusive = addDays(parseISO(alloc.endDate), 1)
+                    const { left, width } = rangeToPercent(rangeStart, rangeEnd, allocStart, allocEndExclusive)
+                    const percent = Math.round((alloc.weeklyHours / resource.weeklyCapacityHours) * 100)
+                    const clippedLeft = allocStart < rangeStart
+                    const clippedRight = allocEndExclusive > rangeEnd
+                    return (
+                      <div
+                        key={alloc.id}
+                        className="absolute z-10"
+                        style={{
+                          left: `${left}%`,
+                          width: `${width}%`,
+                          top: (lanes.get(alloc.id) ?? 0) * LANE_HEIGHT + ROW_PADDING / 2,
+                          height: LANE_HEIGHT - 4,
+                        }}
+                      >
+                        <ProjectDialog project={project} onSave={onUpdateProject}>
+                          {(open) => (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div
+                                  onClick={open}
+                                  className={cn(
+                                    'cursor-pointer',
+                                    ALLOCATION_CHIP_CLASS,
+                                    chipEdgeClass(clippedLeft, clippedRight),
+                                  )}
+                                  style={allocationChipStyle(project.color)}
+                                >
+                                  {project.name}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {project.name} · {alloc.weeklyHours}h/sem ({percent}% da jornada)
+                                <br />
+                                {alloc.startDate} → {alloc.endDate}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </ProjectDialog>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ))}
 
       {todayInRange && (
         <div

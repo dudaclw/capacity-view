@@ -70,7 +70,7 @@
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
+    --radius: 1rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
@@ -82,26 +82,29 @@
 }
 
 /* RNF02: follows the OS light/dark preference directly, no in-app toggle. */
+/* Surface layers step from --background (darkest) up through --card, --muted,
+   --accent (lightest) — same neutral hue throughout, only tone changes, so depth
+   reads from contrast instead of shadow. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #131B23;
-    --foreground: #E9F1F7;
-    --card: #1B2530;
-    --card-foreground: #E9F1F7;
-    --popover: #1B2530;
-    --popover-foreground: #E9F1F7;
-    --primary: #4C9BC9;
-    --primary-foreground: #131B23;
-    --secondary: #816C61;
-    --secondary-foreground: #E9F1F7;
-    --muted: #1F2A36;
-    --muted-foreground: #93A5B0;
-    --accent: #2C3B47;
-    --accent-foreground: #E9F1F7;
+    --background: #17181a;
+    --foreground: #e9eaeb;
+    --card: #232426;
+    --card-foreground: #e9eaeb;
+    --popover: #232426;
+    --popover-foreground: #e9eaeb;
+    --primary: #6ba3f5;
+    --primary-foreground: #17181a;
+    --secondary: #383a3d;
+    --secondary-foreground: #f1f2f3;
+    --muted: #2f3033;
+    --muted-foreground: #a3a4a7;
+    --accent: #383a3d;
+    --accent-foreground: #f1f2f3;
     --destructive: oklch(0.704 0.191 22.216);
-    --border: #2C3B47;
-    --input: #2C3B47;
-    --ring: #4C9BC9;
+    --border: #35363a;
+    --input: #35363a;
+    --ring: #6ba3f5;
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
