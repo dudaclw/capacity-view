@@ -1,4 +1,6 @@
+import { ChevronDown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { CalendarHeader } from '@/components/calendar-header'
 import { ProjectDialog } from '@/components/project-dialog'
@@ -57,6 +59,9 @@ export function CapacityGrid({
   loadWeeks,
   granularity,
   onUpdateProject,
+  onAddAllocation,
+  onUpdateAllocation,
+  onRemoveAllocation,
 }: {
   resources: Resource[]
   projects: Project[]
@@ -65,6 +70,9 @@ export function CapacityGrid({
   loadWeeks: Date[]
   granularity: Granularity
   onUpdateProject: (project: Project) => void
+  onAddAllocation: (allocation: Allocation) => void
+  onUpdateAllocation: (allocation: Allocation) => void
+  onRemoveAllocation: (id: string) => void
 }) {
   const rangeStart = columns[0].start
   const rangeEnd = columns[columns.length - 1].end
@@ -88,12 +96,14 @@ export function CapacityGrid({
       <CalendarHeader columns={columns} granularity={granularity} labelText="Recurso" />
 
       {groups.map((group) => (
-        <div key={group.label} className="flex flex-col gap-2">
-          <div className="rounded-lg bg-muted/40 px-3 py-1.5 text-sm font-medium">
+        <Collapsible key={group.label} defaultOpen className="flex flex-col gap-2">
+          <CollapsibleTrigger className="flex items-center gap-1.5 rounded-lg bg-muted/40 px-3 py-1.5 text-left text-sm font-medium hover:bg-muted/70 data-[state=open]:[&>svg]:rotate-180">
+            <ChevronDown className="size-4 shrink-0 transition-transform" />
             {group.label}{' '}
             <span className="text-muted-foreground text-xs font-normal">({group.resources.length})</span>
-          </div>
+          </CollapsibleTrigger>
 
+          <CollapsibleContent className="flex flex-col gap-2">
           {group.resources.map((resource) => {
             const resourceAllocations = allocations.filter((a) => a.resourceId === resource.id)
             const lanes = assignLanes(resourceAllocations)
@@ -139,6 +149,7 @@ export function CapacityGrid({
                     const allocStart = parseISO(alloc.startDate)
                     const allocEndExclusive = addDays(parseISO(alloc.endDate), 1)
                     const { left, width } = rangeToPercent(rangeStart, rangeEnd, allocStart, allocEndExclusive)
+                    if (width <= 0) return null
                     const percent = Math.round((alloc.weeklyHours / resource.weeklyCapacityHours) * 100)
                     const clippedLeft = allocStart < rangeStart
                     const clippedRight = allocEndExclusive > rangeEnd
@@ -153,7 +164,15 @@ export function CapacityGrid({
                           height: LANE_HEIGHT - 4,
                         }}
                       >
-                        <ProjectDialog project={project} onSave={onUpdateProject}>
+                        <ProjectDialog
+                          project={project}
+                          resources={resources}
+                          allocations={allocations}
+                          onSave={onUpdateProject}
+                          onAddAllocation={onAddAllocation}
+                          onUpdateAllocation={onUpdateAllocation}
+                          onRemoveAllocation={onRemoveAllocation}
+                        >
                           {(open) => (
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -184,7 +203,8 @@ export function CapacityGrid({
               </div>
             )
           })}
-        </div>
+          </CollapsibleContent>
+        </Collapsible>
       ))}
 
       {todayInRange && (

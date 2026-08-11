@@ -404,6 +404,11 @@ export function computeSimulation(
     })
 }
 
+/** Project is currently running per its own Cronograma (RF: start/end date), not a stored flag. */
+export function isProjectOngoing(project: Project, today: Date): boolean {
+  return parseISO(project.startDate) <= today && parseISO(project.endDate) >= today
+}
+
 /**
  * Risco antecipado #1 (bus factor): active projects staffed by exactly one resource —
  * if that person is out, nobody else on record can cover it. Reads ALOCACAO only, no
@@ -414,8 +419,9 @@ export function computeBusFactor(
   allocations: Allocation[],
   weeks: Date[],
 ): Project[] {
+  const today = new Date()
   return projects.filter((project) => {
-    if (project.status !== 'ativo') return false
+    if (!isProjectOngoing(project, today)) return false
     const resourceIds = new Set(
       allocations
         .filter((a) => a.projectId === project.id && weeks.some((w) => weekHours([a], w) > 0))
@@ -499,7 +505,7 @@ export function computeProjectHealth(
   const resourceById = new Map(resources.map((r) => [r.id, r]))
 
   return projects
-    .filter((project) => project.status === 'ativo')
+    .filter((project) => isProjectOngoing(project, today))
     .map((project) => {
       const projectAllocations = allocations.filter((a) => a.projectId === project.id)
       const resourceIds = [...new Set(projectAllocations.map((a) => a.resourceId))]

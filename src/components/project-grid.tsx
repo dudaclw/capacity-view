@@ -37,6 +37,9 @@ export function ProjectGrid({
   columns,
   granularity,
   onUpdateProject,
+  onAddAllocation,
+  onUpdateAllocation,
+  onRemoveAllocation,
 }: {
   resources: Resource[]
   projects: Project[]
@@ -44,6 +47,9 @@ export function ProjectGrid({
   columns: Period[]
   granularity: Granularity
   onUpdateProject: (project: Project) => void
+  onAddAllocation: (allocation: Allocation) => void
+  onUpdateAllocation: (allocation: Allocation) => void
+  onRemoveAllocation: (id: string) => void
 }) {
   const rangeStart = columns[0].start
   const rangeEnd = columns[columns.length - 1].end
@@ -68,7 +74,15 @@ export function ProjectGrid({
               projectIndex % 2 === 0 ? 'bg-card' : 'bg-card/60',
             )}
           >
-            <ProjectDialog project={project} onSave={onUpdateProject}>
+            <ProjectDialog
+              project={project}
+              resources={resources}
+              allocations={allocations}
+              onSave={onUpdateProject}
+              onAddAllocation={onAddAllocation}
+              onUpdateAllocation={onUpdateAllocation}
+              onRemoveAllocation={onRemoveAllocation}
+            >
               {(open) => (
                 <button
                   type="button"
@@ -129,6 +143,7 @@ export function ProjectGrid({
                       const allocStart = parseISO(alloc.startDate)
                       const allocEndExclusive = addDays(parseISO(alloc.endDate), 1)
                       const { left, width } = rangeToPercent(rangeStart, rangeEnd, allocStart, allocEndExclusive)
+                      if (width <= 0) return null
                       const percent = Math.round((alloc.weeklyHours / resource.weeklyCapacityHours) * 100)
                       const clippedLeft = allocStart < rangeStart
                       const clippedRight = allocEndExclusive > rangeEnd

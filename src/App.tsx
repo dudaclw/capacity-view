@@ -83,6 +83,18 @@ function App() {
     setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
   }
 
+  function addAllocation(allocation: Allocation) {
+    setAllocations((prev) => [...prev, allocation])
+  }
+
+  function updateAllocation(updated: Allocation) {
+    setAllocations((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+  }
+
+  function removeAllocation(id: string) {
+    setAllocations((prev) => prev.filter((a) => a.id !== id))
+  }
+
   const SCREEN_ICON: Record<Screen, typeof CalendarRange> = { view: CalendarRange, dashboard: BarChart3 }
   const SCREEN_TITLE: Record<Screen, string> = { view: 'Visão detalhada', dashboard: 'Dashboard' }
 
@@ -232,6 +244,9 @@ function App() {
                   loadWeeks={loadWeeks}
                   granularity={granularity}
                   onUpdateProject={updateProject}
+                  onAddAllocation={addAllocation}
+                  onUpdateAllocation={updateAllocation}
+                  onRemoveAllocation={removeAllocation}
                 />
               ) : (
                 <ProjectGrid
@@ -241,6 +256,9 @@ function App() {
                   columns={columns}
                   granularity={granularity}
                   onUpdateProject={updateProject}
+                  onAddAllocation={addAllocation}
+                  onUpdateAllocation={updateAllocation}
+                  onRemoveAllocation={removeAllocation}
                 />
               )}
             </main>

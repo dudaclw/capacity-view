@@ -10,11 +10,15 @@ export interface Resource {
   roles?: ResourceRole[]
 }
 
+// RAG status: schedule health, not whether the project is active — "atrasado"/"em risco"
+// flag a timeline problem regardless of the project still being worked on.
+export type ProjectStatus = 'on-track' | 'at-risk' | 'delayed'
+
 export interface Project {
   id: string
   name: string
   color: string
-  status: 'ativo' | 'inativo'
+  status: ProjectStatus
   startDate: string // ISO yyyy-mm-dd
   endDate: string // ISO yyyy-mm-dd
 }
