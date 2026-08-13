@@ -173,6 +173,16 @@ export function buildPeriods(granularity: Granularity, start: Date, count: numbe
   })
 }
 
+/**
+ * Does this allocation actually intersect the visible window? A chip clipped to zero
+ * width still paints its 4px accent border, so an allocation that ended before the
+ * window would otherwise render as a misleading sliver pinned to the left edge —
+ * a bar where there is no work. Callers drop those instead of drawing them.
+ */
+export function allocationInRange(alloc: Allocation, rangeStart: Date, rangeEnd: Date): boolean {
+  return parseISO(alloc.startDate) < rangeEnd && addDays(parseISO(alloc.endDate), 1) > rangeStart
+}
+
 /** Left/width as % of the visible range, clipped to [0, 100]. */
 export function rangeToPercent(
   rangeStart: Date,

@@ -4,6 +4,7 @@ import { CalendarHeader } from '@/components/calendar-header'
 import { ProjectDialog } from '@/components/project-dialog'
 import {
   addDays,
+  allocationInRange,
   assignLanes,
   columnTint,
   isWeekend,
@@ -103,7 +104,12 @@ export function ProjectGrid({
               if (!resource) return null
               const allResourceAllocations = allocations.filter((a) => a.resourceId === resourceId)
               const rowAllocations = projectAllocations.filter((a) => a.resourceId === resourceId)
-              const lanes = assignLanes(rowAllocations)
+              // Only what overlaps the window gets a bar (and a % badge) — otherwise a
+              // finished project would show a zero-width chip that still paints its accent.
+              const visibleRowAllocations = rowAllocations.filter((a) =>
+                allocationInRange(a, rangeStart, rangeEnd),
+              )
+              const lanes = assignLanes(visibleRowAllocations)
               const laneCount = Math.max(1, ...Array.from(lanes.values(), (l) => l + 1))
 
               return (
@@ -114,7 +120,7 @@ export function ProjectGrid({
                   >
                     <span className="text-sm">{resource.name}</span>
                     <div className="flex flex-wrap gap-1">
-                      {rowAllocations.map((alloc) => (
+                      {visibleRowAllocations.map((alloc) => (
                         <Badge key={alloc.id} variant="secondary" className="w-fit">
                           {Math.round((alloc.weeklyHours / resource.weeklyCapacityHours) * 100)}%
                         </Badge>
@@ -139,7 +145,7 @@ export function ProjectGrid({
                         )
                       })}
                     </div>
-                    {rowAllocations.map((alloc) => {
+                    {visibleRowAllocations.map((alloc) => {
                       const allocStart = parseISO(alloc.startDate)
                       const allocEndExclusive = addDays(parseISO(alloc.endDate), 1)
                       const { left, width } = rangeToPercent(rangeStart, rangeEnd, allocStart, allocEndExclusive)

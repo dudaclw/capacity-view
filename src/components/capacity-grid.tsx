@@ -6,6 +6,7 @@ import { CalendarHeader } from '@/components/calendar-header'
 import { ProjectDialog } from '@/components/project-dialog'
 import {
   addDays,
+  allocationInRange,
   assignLanes,
   columnTint,
   computeLoad,
@@ -106,8 +107,14 @@ export function CapacityGrid({
           <CollapsibleContent className="flex flex-col gap-2">
           {group.resources.map((resource) => {
             const resourceAllocations = allocations.filter((a) => a.resourceId === resource.id)
-            const lanes = assignLanes(resourceAllocations)
+            // Lanes/height come from what's actually drawn, so a row doesn't reserve
+            // empty lanes for allocations that fall outside the window.
+            const visibleAllocations = resourceAllocations.filter((a) =>
+              allocationInRange(a, rangeStart, rangeEnd),
+            )
+            const lanes = assignLanes(visibleAllocations)
             const laneCount = Math.max(1, ...Array.from(lanes.values(), (l) => l + 1))
+            // Load still reads every allocation — weekHours only counts the visible weeks.
             const load = computeLoad(resource, resourceAllocations, loadWeeks)
             const zebra = rowIndex++ % 2 === 0
 
@@ -143,7 +150,7 @@ export function CapacityGrid({
                       )
                     })}
                   </div>
-                  {resourceAllocations.map((alloc) => {
+                  {visibleAllocations.map((alloc) => {
                     const project = projectById.get(alloc.projectId)
                     if (!project) return null
                     const allocStart = parseISO(alloc.startDate)
